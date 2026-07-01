@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fintech Dashboard</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- ============================================== -->
+        <!-- SCREEN 1: ANA SAYFA (DASHBOARD) -->
+        <!-- ============================================== -->
+        <section id="tab-home" class="screen active">
+            <header class="app-header">
+                <div class="header-left">
+                    <span class="greeting">Merhaba 👋</span>
+                    <h1 class="page-title">Finansal Dashboard</h1>
+                    <p class="subtitle">Bugünkü finansal durumunuz</p>
+                </div>
+                <div class="header-right">
+                    <div class="notification-icon">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="badge"></span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="scrollable">
+                <!-- Main Balance Card -->
+                <div class="glass-card balance-card">
+                    <div class="balance-header">
+                        <span class="label">Toplam Mevduat</span>
+                        <i class="fa-regular fa-eye eye-icon"></i>
+                    </div>
+                    <div class="amount" id="dash-total-balance">0,00 ₺</div>
+                    
+                    <div class="balance-split">
+                        <div class="split-col">
+                            <span class="label">Bugünkü Kazanç</span>
+                            <span class="value success-text" id="dash-daily-profit">+0,00 ₺</span>
+                        </div>
+                        <div class="split-col">
+                            <span class="label">Toplam Net Getiri</span>
+                            <span class="value success-text" id="dash-total-profit">+0,00 ₺</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real Return Analysis Card -->
+                <div class="glass-card dark-card">
+                    <div class="card-header-inline">
+                        <h3 class="card-title">Reel Getiri Durumu</h3>
+                        <span class="status-badge success-bg" id="dash-real-badge">Hesaplanmadı</span>
+                    </div>
+                    
+                    <div class="real-return-large" id="dash-real-rate">%0.0</div>
+                    <p class="subtitle mb-3">Reel Getiri Oranı (Vade Sonu)</p>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="comparison-block">
+                        <div class="comp-item">
+                            <span class="label">Enflasyon</span>
+                            <span class="value" id="dash-inflation-rate">%0.0</span>
+                        </div>
+                        <div class="comp-icon success-text">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+                        <div class="comp-item right-align">
+                            <span class="label">Faiz Getirisi</span>
+                            <span class="value" id="dash-interest-rate">%0.0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Earning Card -->
+                <div class="glass-card dark-card">
+                    <h3 class="card-title">Bugünkü Kazanç</h3>
+                    <div class="amount success-text mb-3" id="dash-daily-profit-large">+0,00 ₺</div>
+                    
+                    <div class="mini-cards">
+                        <div class="mini-card">
+                            <span class="label">Saatlik</span>
+                            <span class="value" id="dash-hourly-profit">0 ₺</span>
+                        </div>
+                        <div class="mini-card">
+                            <span class="label">Dakikalık</span>
+                            <span class="value" id="dash-minute-profit">0 ₺</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <span class="footer-text">Son güncelleme: Şimdi</span>
+                        <i class="fa-solid fa-rotate-right refresh-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <h3 class="section-title">Hızlı İşlemler</h3>
+                <div class="quick-actions">
+                    <div class="action-btn" onclick="switchTab('tab-calc')">
+                        <div class="action-icon success-bg"><i class="fa-solid fa-plus"></i></div>
+                        <span class="action-label">Yeni Hesaplama</span>
+                    </div>
+                    <div class="action-btn" onclick="switchTab('tab-analysis')">
+                        <div class="action-icon purple-bg"><i class="fa-solid fa-chart-pie"></i></div>
+                        <span class="action-label">Karşılaştırma</span>
+                    </div>
+                    <div class="action-btn">
+                        <div class="action-icon yellow-bg"><i class="fa-solid fa-bell"></i></div>
+                        <span class="action-label">Faiz Alarmı</span>
+                    </div>
+                    <div class="action-btn">
+                        <div class="action-icon red-bg"><i class="fa-solid fa-bullseye"></i></div>
+                        <span class="action-label">Hedef Belirle</span>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 2: YENİ MEVDUAT HESABI (HESAPLA) -->
+        <!-- ============================================== -->
+        <section id="tab-calc" class="screen">
+            <header class="app-header flex-header">
+                <i class="fa-solid fa-chevron-left back-icon" onclick="switchTab('tab-home')"></i>
+                <div class="header-center">
+                    <h1 class="page-title">Yeni Mevduat Hesabı</h1>
+                    <p class="subtitle">Hesaplama bilgilerinizi girin</p>
+                </div>
+            </header>
+
+            <main class="scrollable">
+                <form id="calculator-form">
+                    <div class="floating-input-group">
+                        <input type="number" id="balance" name="balance" required value="1000000" min="0" step="0.01">
+                        <label for="balance">Anapara (TL)</label>
+                        <span class="suffix">₺</span>
+                    </div>
+
+                    <div class="floating-input-group">
+                        <input type="number" id="interest-rate" name="interest-rate" required value="45" min="0" step="0.01">
+                        <label for="interest-rate">Yıllık Faiz Oranı (%)</label>
+                        <span class="suffix">%</span>
+                    </div>
+
+                    <div class="floating-input-group select-group">
+                        <select id="term-days" name="term-days" required>
+                            <option value="32" selected>32 Gün</option>
+                            <option value="46">46 Gün</option>
+                            <option value="92">92 Gün</option>
+                            <option value="181">181 Gün</option>
+                        </select>
+                        <label for="term-days">Vade Süresi</label>
+                        <i class="fa-solid fa-chevron-down suffix-icon"></i>
+                    </div>
+
+                    <div class="floating-input-group">
+                        <input type="text" id="start-date" name="start-date" readonly value="">
+                        <label for="start-date">Başlangıç Tarihi</label>
+                        <i class="fa-regular fa-calendar suffix-icon"></i>
+                    </div>
+                    
+                    <div class="floating-input-group">
+                        <!-- EVDS API entegrasyonu için (Görünür kılındı ama read-only veya default değer eklenebilir) -->
+                        <input type="number" id="inflation-rate" name="inflation-rate" required value="3.5" min="0" step="0.01">
+                        <label for="inflation-rate">Aylık Enflasyon (TCMB) <span id="api-status"></span></label>
+                        <span class="suffix">%</span>
+                    </div>
+
+                    <!-- Gizli alan: Dinamik Banka Alt limiti (eskiden vardı) -->
+                    <input type="hidden" id="bank-limit" value="126">
+
+                    <div class="floating-input-group">
+                        <input type="number" id="tax-rate" name="tax-rate" required value="15" min="0" max="100" step="1">
+                        <label for="tax-rate">Stopaj Oranı (%)</label>
+                        <span class="suffix">%</span>
+                    </div>
+
+                    <!-- Net Rate Info Card -->
+                    <div class="glass-card blue-green-bg mt-3">
+                        <span class="label text-light">Net faiz oranınız</span>
+                        <div class="amount text-white" id="net-rate-display">%38.25</div>
+                        <p class="subtitle text-light mt-1">Stopaj sonrası hesaplanan yıllık net faiz oranı</p>
+                    </div>
+
+                    <button type="submit" class="btn-primary mt-4">HESAPLA</button>
+                    
+                    <div id="calc-success-msg" class="success-text mt-3" style="text-align: center; opacity: 0; transition: opacity 0.3s;">
+                        Hesaplama başarılı. Ana Sayfa veya Analiz sekmesine geçin.
+                    </div>
+                </form>
+
+                <div class="glass-card dark-card expandable-card mt-4">
+                    <div class="card-header-inline">
+                        <h3 class="card-title">Hesaplama Bilgisi</h3>
+                        <i class="fa-solid fa-circle-info text-muted"></i>
+                    </div>
+                    <p class="subtitle mt-2">Bu hesaplama, girdiğiniz verilere göre mevduat getirisi ve enflasyon karşılaştırmasını analiz eder.</p>
+                </div>
+            </main>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 3: ANALİZ -->
+        <!-- ============================================== -->
+        <section id="tab-analysis" class="screen">
+            <header class="app-header">
+                <h1 class="page-title text-center">Analiz</h1>
+                
+                <div class="tab-navigation">
+                    <div class="nav-item active">Genel Bakış</div>
+                    <div class="nav-item">Karşılaştırma</div>
+                    <div class="nav-item">Detaylı Analiz</div>
+                </div>
+            </header>
+
+            <main class="scrollable">
+                <!-- Performance Card -->
+                <div class="glass-card dark-card mb-3">
+                    <div class="card-header-inline">
+                        <h3 class="card-title">Vade Sonu Performansı</h3>
+                        <span class="dropdown-badge">Vade <i class="fa-solid fa-chevron-down ml-1"></i></span>
+                    </div>
+                    
+                    <div class="progress-block mt-3">
+                        <div class="progress-label-row">
+                            <span>Faiz Getirisi (Net)</span>
+                            <span id="analysis-interest-val">%0.0</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar success-bg" id="analysis-interest-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-block mt-3">
+                        <div class="progress-label-row">
+                            <span>Enflasyon Kaybı (Vade Süresince)</span>
+                            <span id="analysis-inflation-val">%0.0</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar blue-bg" id="analysis-inflation-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real Return Result Card -->
+                <div class="glass-card success-tint-bg mb-3" id="analysis-real-card">
+                    <div class="card-header-inline">
+                        <div class="icon-circle success-bg" id="analysis-icon-bg">
+                            <i class="fa-solid fa-chart-line" id="analysis-icon"></i>
+                        </div>
+                        <div class="right-align">
+                            <h3 class="card-title">Reel Getiri Miktarı</h3>
+                            <div class="amount" id="analysis-real-val">0,00 ₺</div>
+                        </div>
+                    </div>
+                    <p class="subtitle text-light mt-2" id="analysis-real-desc">Hesaplama bekleniyor...</p>
+                </div>
+
+                <!-- Line Chart Card -->
+                <div class="glass-card dark-card mb-3">
+                    <h3 class="card-title mb-3">Aylık Getiri/Kayıp Grafiği</h3>
+                    <div class="chart-container">
+                        <canvas id="yieldChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Monthly Data Table -->
+                <div class="glass-card dark-card mb-4">
+                    <h3 class="card-title mb-3">Gelecek 3 Ay Simülasyonu</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ay</th>
+                                <th>Faiz (%)</th>
+                                <th>Enflasyon (%)</th>
+                                <th>Reel (₺)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analysis-table-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">Önce bir hesaplama yapınız.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- SCREEN 4: AYARLAR -->
+        <!-- ============================================== -->
+        <section id="tab-settings" class="screen">
+            <header class="app-header">
+                <h1 class="page-title">Ayarlar</h1>
+                <p class="subtitle">Uygulama ayarlarınızı yönetin</p>
+            </header>
+
+            <main class="scrollable">
+                
+                <h3 class="section-title">HESAPLAMA AYARLARI</h3>
+                <div class="settings-group glass-card dark-card p-0 mb-4">
+                    <div class="settings-item">
+                        <span>Varsayılan Stopaj Oranı</span>
+                        <div class="settings-right">
+                            <span class="value">%15</span>
+                            <i class="fa-solid fa-chevron-right text-muted ml-2"></i>
+                        </div>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                        <span>Varsayılan Vade</span>
+                        <div class="settings-right">
+                            <span class="value">32 Gün</span>
+                            <i class="fa-solid fa-chevron-right text-muted ml-2"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="section-title">BİLDİRİM AYARLARI</h3>
+                <div class="settings-group glass-card dark-card p-0 mb-4">
+                    <div class="settings-item">
+                        <span>Faiz Alarmı</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                        <span>Enflasyon Uyarısı</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                        <span>Haftalık Rapor</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <h3 class="section-title">GÖRÜNÜM</h3>
+                <div class="settings-group glass-card dark-card p-0 mb-4">
+                    <div class="settings-item">
+                        <span>Karanlık Mod</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                        <span>Dil</span>
+                        <div class="settings-right">
+                            <span class="value">Türkçe</span>
+                            <i class="fa-solid fa-chevron-right text-muted ml-2"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="section-title">VERİ VE SENKRONİZASYON</h3>
+                <div class="settings-group glass-card dark-card p-0 mb-5">
+                    <div class="settings-item">
+                        <div class="icon-text">
+                            <i class="fa-solid fa-cloud text-muted mr-2"></i>
+                            <span>Verileri Yedekle (Firebase)</span>
+                        </div>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                        <div class="icon-text">
+                            <i class="fa-solid fa-clock-rotate-left text-muted mr-2"></i>
+                            <span>Verileri Geri Yükle</span>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- BOTTOM NAVIGATION -->
+        <!-- ============================================== -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('tab-home')" data-target="tab-home">
+                <i class="fa-solid fa-house"></i>
+                <span>Ana Sayfa</span>
+            </div>
+            <div class="nav-item" onclick="switchTab('tab-calc')" data-target="tab-calc">
+                <i class="fa-solid fa-calculator"></i>
+                <span>Hesapla</span>
+            </div>
+            <div class="nav-item" onclick="switchTab('tab-analysis')" data-target="tab-analysis">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>Analiz</span>
+            </div>
+            <div class="nav-item" onclick="switchTab('tab-settings')" data-target="tab-settings">
+                <i class="fa-solid fa-gear"></i>
+                <span>Ayarlar</span>
+            </div>
+        </nav>
+
+    </div>
+    
+    <script type="module" src="js/app.js"></script>
+    <script>
+        // Global sekme değiştirici - app.js üzerinden de çağrılabilir
+        window.switchTab = function(targetId) {
+            document.querySelectorAll('.screen').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.getElementById(targetId).classList.add('active');
+
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(el => {
+                el.classList.remove('active');
+                if(el.getAttribute('data-target') === targetId) {
+                    el.classList.add('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
