@@ -1,6 +1,5 @@
-// Firebase SDK v10.12.2 (ES Modules)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // TODO: Bu objeyi Firebase Console'dan alınan kendi yapılandırmanız ile değiştirin.
 const firebaseConfig = {
@@ -20,4 +19,4 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
 // Veritabanı fonksiyonları (Aşama 6 için ön hazırlık)
-export { collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp };
+export { collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, deleteDoc };

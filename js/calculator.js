@@ -1,12 +1,12 @@
-export function calculateInterest(balance, interestRate, bankLimit, termDays) {
+export function calculateInterest(balance, interestRate, bankLimit, termDays, taxRate) {
     // 1. Faiz İşleyen Anapara
     const principal = Math.max(0, balance - bankLimit);
     
     // 2. Günlük Brüt Faiz
     const dailyGrossInterest = (principal * (interestRate / 100)) / 365;
     
-    // 3. Günlük Vergi (%17.5 stopaj)
-    const dailyTax = dailyGrossInterest * 0.175;
+    // 3. Günlük Vergi (Kullanıcının girdiği Stopaj)
+    const dailyTax = dailyGrossInterest * (taxRate / 100);
     
     // 4. Günlük Net Kazanç
     const dailyNetIncome = dailyGrossInterest - dailyTax;

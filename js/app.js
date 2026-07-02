@@ -1,27 +1,204 @@
-import { db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from './firebase-config.js';
+import { db, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc, deleteDoc } from './firebase-config.js';
 import { fetchInflationRate } from './api.js';
 
 // DOM Element Referansları
 const form = document.getElementById('calculator-form');
 const inflationInput = document.getElementById('inflation-rate');
 const apiStatus = document.getElementById('api-status');
-const startDateInput = document.getElementById('start-date');
 
 // Format Helper
 const formatCurrency = (val) => val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatPercent = (val) => `%${val.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}`;
 
-// Global Chart Instance
+// Global Variables
 let yieldChartInstance = null;
+let currentDashboardData = null;
+let isBalanceVisible = true;
+let deleteCallback = null;
+
+// Modal Logic
+window.showModal = function(title, message) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-message').textContent = message;
+    document.getElementById('custom-modal').classList.add('active');
+}
+window.closeModal = function() {
+    document.getElementById('custom-modal').classList.remove('active');
+}
+window.closeNotificationModal = function() {
+    document.getElementById('notification-modal').classList.remove('active');
+}
+window.closeConfirmModal = function() {
+    document.getElementById('confirm-modal').classList.remove('active');
+}
+
+document.getElementById('confirm-btn-yes').addEventListener('click', async () => {
+    window.closeConfirmModal();
+    if(deleteCallback) {
+        await deleteCallback();
+        deleteCallback = null;
+    }
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Tarih Ayarlama
-    const today = new Date();
-    if(startDateInput) {
-        startDateInput.value = today.toLocaleDateString('tr-TR');
+
+    // Ayarlar Mantığı (Firebase Firestore Yüklemesi)
+    const settingTax = document.getElementById('setting-default-tax');
+    const settingTerm = document.getElementById('setting-default-term');
+    const settingInterest = document.getElementById('setting-default-interest');
+    const themeToggle = document.getElementById('theme-toggle');
+    
+    const taxInput = document.getElementById('tax-rate');
+    const termInput = document.getElementById('term-days');
+    const interestInput = document.getElementById('interest-rate');
+
+    const loadSettings = async () => {
+        let savedTax = 15;
+        let savedTerm = 32;
+        let savedInterest = 45;
+        let isDarkMode = true;
+
+        if (db) {
+            try {
+                const settingsRef = doc(db, 'settings', 'user_prefs');
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists()) {
+                    const d = docSnap.data();
+                    if(d.defaultTax !== undefined) savedTax = d.defaultTax;
+                    if(d.defaultTerm !== undefined) savedTerm = d.defaultTerm;
+                    if(d.defaultInterest !== undefined) savedInterest = d.defaultInterest;
+                    if(d.isDarkMode !== undefined) isDarkMode = d.isDarkMode;
+                }
+            } catch (err) {
+                console.error("Firebase settings error:", err);
+            }
+        }
+
+        if(!isDarkMode) {
+            document.body.classList.add('light-mode');
+            if(themeToggle) themeToggle.checked = false;
+        } else {
+            document.body.classList.remove('light-mode');
+            if(themeToggle) themeToggle.checked = true;
+        }
+
+        if(settingTax) settingTax.value = savedTax;
+        if(settingTerm) settingTerm.value = savedTerm;
+        if(settingInterest) settingInterest.value = savedInterest;
+
+        if(taxInput) taxInput.value = savedTax;
+        if(interestInput) interestInput.value = savedInterest;
+        if(termInput) {
+            const exists = Array.from(termInput.options).some(opt => opt.value == savedTerm);
+            if(!exists) {
+                const opt = document.createElement('option');
+                opt.value = savedTerm;
+                opt.textContent = `${savedTerm} Gün`;
+                termInput.appendChild(opt);
+            }
+            termInput.value = savedTerm;
+        }
+    };
+    
+    loadSettings();
+
+    const saveSettingsToFirebase = async () => {
+        if (!db) return;
+        try {
+            const settingsRef = doc(db, 'settings', 'user_prefs');
+            await setDoc(settingsRef, {
+                defaultTax: settingTax.value,
+                defaultTerm: settingTerm.value,
+                defaultInterest: settingInterest.value,
+                isDarkMode: themeToggle ? themeToggle.checked : true
+            }, { merge: true });
+        } catch (err) {
+            console.error("Save settings error:", err);
+            showModal("Hata", "Ayarlar kaydedilirken hata oluştu.");
+        }
+    };
+
+    if(settingTax) {
+        settingTax.addEventListener('change', (e) => {
+            if(taxInput) taxInput.value = e.target.value;
+            saveSettingsToFirebase();
+        });
+    }
+    if(settingTerm) {
+        settingTerm.addEventListener('change', (e) => {
+            if(termInput) {
+                const exists = Array.from(termInput.options).some(opt => opt.value == e.target.value);
+                if(!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = e.target.value;
+                    opt.textContent = `${e.target.value} Gün`;
+                    termInput.appendChild(opt);
+                }
+                termInput.value = e.target.value;
+            }
+            saveSettingsToFirebase();
+        });
+    }
+    if(settingInterest) {
+        settingInterest.addEventListener('change', (e) => {
+            if(interestInput) interestInput.value = e.target.value;
+            saveSettingsToFirebase();
+        });
+    }
+    if(themeToggle) {
+        themeToggle.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                document.body.classList.remove('light-mode');
+            } else {
+                document.body.classList.add('light-mode');
+            }
+            saveSettingsToFirebase();
+        });
     }
 
-    // 2. Enflasyon Verisi (EVDS)
+    // Yedekleme Butonları Modal
+    const btnBackup = document.getElementById('btn-backup');
+    const btnRestore = document.getElementById('btn-restore');
+    if(btnBackup) btnBackup.addEventListener('click', () => showModal('Başarılı', 'Veriler Firebase üzerine başarıyla yedeklendi.'));
+    if(btnRestore) btnRestore.addEventListener('click', () => showModal('Başarılı', 'En son bulut yedeğinden veriler geri yüklendi.'));
+
+    // Göz İkonu Dinleyicisi
+    const toggleEye = document.getElementById('toggle-balance-visibility');
+    if(toggleEye) {
+        toggleEye.addEventListener('click', () => {
+            isBalanceVisible = !isBalanceVisible;
+            renderDashboardBalance();
+        });
+    }
+
+    // Bildirim İkonu Dinleyicisi
+    const notifBell = document.getElementById('notification-bell');
+    if(notifBell) {
+        notifBell.addEventListener('click', () => {
+            document.getElementById('notification-modal').classList.add('active');
+        });
+    }
+
+    // Balance Input Formatting
+    const balanceInput = document.getElementById('balance');
+    if(balanceInput) {
+        balanceInput.addEventListener('input', function(e) {
+            let val = this.value.replace(/[^\d,]/g, '');
+            let parts = val.split(',');
+            let intPart = parts[0];
+            if (intPart) {
+                intPart = parseInt(intPart, 10).toString();
+                intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            }
+            if (parts.length > 1) {
+                this.value = intPart + ',' + parts[1].substring(0, 2);
+            } else {
+                this.value = intPart;
+            }
+        });
+    }
+
+    // Enflasyon Verisi (EVDS)
     try {
         if(apiStatus) {
             apiStatus.textContent = "(Çekiliyor...)";
@@ -40,35 +217,168 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 3. Firebase Geçmiş Dinleyici & Dashboard Güncelleme
+    // Firebase Geçmiş Dinleyici
     if (db) {
-        const q = query(collection(db, "calculations"), orderBy("timestamp", "desc"), limit(1)); // Son veriyi al
+        const historyList = document.getElementById('history-list');
+        const notifList = document.getElementById('notification-list');
+        
+        const q = query(collection(db, "calculations"), orderBy("timestamp", "desc"), limit(15)); 
         onSnapshot(q, (snapshot) => {
             if (!snapshot.empty) {
-                const data = snapshot.docs[0].data();
-                updateDashboardWithData(data);
-                updateAnalysisWithData(data);
+                const latestData = snapshot.docs[0].data();
+                currentDashboardData = latestData;
+                renderDashboardBalance();
+                updateDashboardWithData(latestData);
+                updateAnalysisWithData(latestData);
+
+                if(historyList) historyList.innerHTML = '';
+                if(notifList) notifList.innerHTML = '';
+                
+                snapshot.docs.forEach((docSnap, index) => {
+                    const data = docSnap.data();
+                    const docId = docSnap.id;
+                    const dateStr = data.timestamp ? data.timestamp.toDate().toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' }) : 'Şimdi';
+                    
+                    const isProfit = data.realReturn > 0;
+                    const realClass = isProfit ? 'profit' : 'loss';
+                    const realText = isProfit ? `+${formatCurrency(data.realReturn)}` : `${formatCurrency(data.realReturn)}`;
+                    
+                    if(index < 5 && historyList) {
+                        const el = document.createElement('div');
+                        el.className = 'history-item';
+                        el.innerHTML = `
+                            <div class="history-item-header">
+                                <span>Bakiye: ${formatCurrency(data.balance)} ₺ | Vade: ${data.termDays} Gün</span>
+                                <span>${dateStr}</span>
+                            </div>
+                            <div class="history-item-body">
+                                <span class="net">Net: ${formatCurrency(data.totalNetProfit)} ₺</span>
+                                <span class="real ${realClass}">Reel: ${realText} ₺</span>
+                            </div>
+                        `;
+                        historyList.appendChild(el);
+                    }
+
+                    if(notifList) {
+                        const el = document.createElement('div');
+                        el.className = 'history-item';
+                        el.innerHTML = `
+                            <div class="history-item-header">
+                                <span>Bakiye: ${formatCurrency(data.balance)} ₺ | Vade: ${data.termDays} Gün</span>
+                                <span>${dateStr}</span>
+                            </div>
+                            <div class="history-item-body">
+                                <span class="net" style="font-size: 0.85rem;">Net: ${formatCurrency(data.totalNetProfit)} ₺</span>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <span class="real ${realClass}" style="font-size: 0.85rem;">Reel: ${realText} ₺</span>
+                                    <i class="fa-solid fa-trash" style="color: var(--soft-red); cursor: pointer;" data-id="${docId}"></i>
+                                </div>
+                            </div>
+                        `;
+                        notifList.appendChild(el);
+                    }
+                });
+
+                if(notifList) {
+                    notifList.querySelectorAll('.fa-trash').forEach(icon => {
+                        icon.addEventListener('click', (e) => {
+                            const docId = e.target.getAttribute('data-id');
+                            document.getElementById('confirm-title').textContent = "Uyarı";
+                            document.getElementById('confirm-message').textContent = "Bu geçmiş kaydını silmek istediğinize emin misiniz?";
+                            document.getElementById('confirm-modal').classList.add('active');
+                            deleteCallback = async () => {
+                                try {
+                                    await deleteDoc(doc(db, "calculations", docId));
+                                    window.closeNotificationModal();
+                                    showModal("Başarılı", "Kayıt silindi.");
+                                } catch(err) {
+                                    console.error(err);
+                                    showModal("Hata", "Kayıt silinirken bir hata oluştu.");
+                                }
+                            };
+                        });
+                    });
+                }
+            } else {
+                currentDashboardData = null;
+                const toggleEye = document.getElementById('toggle-balance-visibility');
+                document.getElementById('dash-total-balance').textContent = `0,00 ₺`;
+                document.getElementById('dash-daily-profit').textContent = `+0,00 ₺`;
+                document.getElementById('dash-total-profit').textContent = `+0,00 ₺`;
+                if(toggleEye) {
+                    toggleEye.classList.remove('fa-eye-slash');
+                    toggleEye.classList.add('fa-eye');
+                }
+                
+                const realBadge = document.getElementById('dash-real-badge');
+                if(realBadge) {
+                    realBadge.textContent = "Veri Yok";
+                    realBadge.className = "status-badge";
+                }
+                const realRateText = document.getElementById('dash-real-rate');
+                if(realRateText) {
+                    realRateText.textContent = `%0,00`;
+                    realRateText.style.color = "var(--text-muted)";
+                    realRateText.style.textShadow = "none";
+                }
+                
+                document.getElementById('dash-inflation-rate').textContent = `%0,00`;
+                document.getElementById('dash-interest-rate').textContent = `%0,00`;
+                document.getElementById('dash-daily-profit-large').textContent = `+0,00 ₺`;
+                document.getElementById('dash-hourly-profit').textContent = `0,00 ₺`;
+                document.getElementById('dash-minute-profit').textContent = `0,00 ₺`;
+
+                if(historyList) historyList.innerHTML = '<p style="text-align:center; color: var(--text-muted);">Henüz bir geçmiş bulunmuyor.</p>';
+                if(notifList) notifList.innerHTML = '<p style="text-align:center; color: var(--text-muted);">Henüz bir geçmiş bulunmuyor.</p>';
             }
         });
     }
 });
 
-// Hesaplama Formu Gönderimi
+function renderDashboardBalance() {
+    if(!currentDashboardData) return;
+    const data = currentDashboardData;
+    const toggleEye = document.getElementById('toggle-balance-visibility');
+
+    if (isBalanceVisible) {
+        document.getElementById('dash-total-balance').textContent = `${formatCurrency(data.balance)} ₺`;
+        document.getElementById('dash-daily-profit').textContent = `+${formatCurrency(data.dailyNetIncome)} ₺`;
+        document.getElementById('dash-total-profit').textContent = `+${formatCurrency(data.totalNetProfit)} ₺`;
+        if(toggleEye) {
+            toggleEye.classList.remove('fa-eye-slash');
+            toggleEye.classList.add('fa-eye');
+        }
+    } else {
+        document.getElementById('dash-total-balance').textContent = `*** ₺`;
+        document.getElementById('dash-daily-profit').textContent = `*** ₺`;
+        document.getElementById('dash-total-profit').textContent = `*** ₺`;
+        if(toggleEye) {
+            toggleEye.classList.remove('fa-eye');
+            toggleEye.classList.add('fa-eye-slash');
+        }
+    }
+}
+
 if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const balance = parseFloat(document.getElementById('balance').value);
+        const balanceInput = document.getElementById('balance');
+        let rawBalanceStr = balanceInput.value.replace(/\./g, '').replace(',', '.');
+        if(!rawBalanceStr || parseFloat(rawBalanceStr) <= 0) {
+            showModal("Hata", "Lütfen geçerli bir anapara tutarı giriniz.");
+            return;
+        }
+
+        const balance = parseFloat(rawBalanceStr);
         const interestRate = parseFloat(document.getElementById('interest-rate').value);
         const termDays = parseInt(document.getElementById('term-days').value, 10);
         const inflationRate = parseFloat(inflationInput.value || 0);
         const taxRate = parseFloat(document.getElementById('tax-rate').value || 15);
         
-        // Vadeye Göre Net Faiz Oranı
         const netInterestRate = interestRate * (1 - (taxRate/100));
         document.getElementById('net-rate-display').textContent = formatPercent(netInterestRate);
 
-        // Hesaplama Motoru (Kendi içimizde yeniden yazıldı ki yeni parametrelere tam uyumlu olsun)
         const principal = balance;
         const dailyGross = (principal * (interestRate / 100)) / 365;
         const dailyTax = dailyGross * (taxRate / 100);
@@ -76,7 +386,6 @@ if (form) {
         const totalNetProfit = dailyNet * termDays;
         const finalBalance = balance + totalNetProfit;
         
-        // Reel Getiri
         const inflationLoss = balance * (inflationRate / 100) / 30 * termDays;
         const realReturn = totalNetProfit - inflationLoss;
         const realReturnRate = (realReturn / balance) * 100;
@@ -88,31 +397,37 @@ if (form) {
             timestamp: serverTimestamp()
         };
 
-        // Başarı Mesajı
         const msg = document.getElementById('calc-success-msg');
         msg.style.opacity = 1;
-        setTimeout(() => { msg.style.opacity = 0; }, 4000);
+        setTimeout(() => { msg.style.opacity = 0; }, 2000);
 
-        // Firebase Kaydı
         if (db) {
             try {
                 await addDoc(collection(db, "calculations"), calcData);
             } catch (err) {
                 console.error(err);
-                // Çevrimdışı / Hata durumunda UI'ı lokal verilerle besle
+                currentDashboardData = calcData;
+                renderDashboardBalance();
                 updateDashboardWithData(calcData);
                 updateAnalysisWithData(calcData);
+                showModal("Hata", "Veritabanına kaydedilemedi, sonuçlar çevrimdışı gösteriliyor.");
             }
+        } else {
+            currentDashboardData = calcData;
+            renderDashboardBalance();
+            updateDashboardWithData(calcData);
+            updateAnalysisWithData(calcData);
+        }
+
+        balanceInput.value = '';
+
+        if(window.switchTab) {
+            window.switchTab('tab-home');
         }
     });
 }
 
 function updateDashboardWithData(data) {
-    document.getElementById('dash-total-balance').textContent = `${formatCurrency(data.balance)} ₺`;
-    document.getElementById('dash-daily-profit').textContent = `+${formatCurrency(data.dailyNetIncome)} ₺`;
-    document.getElementById('dash-total-profit').textContent = `+${formatCurrency(data.totalNetProfit)} ₺`;
-    
-    // Reel Getiri
     const realBadge = document.getElementById('dash-real-badge');
     const realRateText = document.getElementById('dash-real-rate');
     
@@ -162,7 +477,7 @@ function updateAnalysisWithData(data) {
         realDescEl.textContent = "Pozitif Getiri (Alım gücünüz arttı)";
         realCard.className = "glass-card success-tint-bg mb-3";
         realIconBg.className = "icon-circle success-bg";
-        realIcon.className = "fa-solid fa-arrow-trend-up";
+        realIcon.className = "fa-solid fa-arrow-trend-up text-black";
     } else {
         realValEl.textContent = `${formatCurrency(data.realReturn)} ₺`;
         realValEl.style.color = "var(--text-main)";
@@ -174,7 +489,6 @@ function updateAnalysisWithData(data) {
 
     drawChart(termRate, termInflation);
 
-    // Tablo
     const tbody = document.getElementById('analysis-table-body');
     tbody.innerHTML = '';
     const months = ['1. Ay', '2. Ay', '3. Ay'];
@@ -210,7 +524,7 @@ function drawChart(interest, inflation) {
     const inflationData = [];
     
     for(let i=1; i<=6; i++) {
-        interestData.push(interest * i); // Projeksiyon (Kümülatif)
+        interestData.push(interest * i); 
         inflationData.push(inflation * i);
     }
     

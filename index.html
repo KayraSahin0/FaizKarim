@@ -27,9 +27,8 @@
                     <p class="subtitle">Bugünkü finansal durumunuz</p>
                 </div>
                 <div class="header-right">
-                    <div class="notification-icon">
-                        <i class="fa-regular fa-bell"></i>
-                        <span class="badge"></span>
+                    <div class="notification-icon" id="notification-bell" style="cursor: pointer;">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
                     </div>
                 </div>
             </header>
@@ -39,7 +38,7 @@
                 <div class="glass-card balance-card">
                     <div class="balance-header">
                         <span class="label">Toplam Mevduat</span>
-                        <i class="fa-regular fa-eye eye-icon"></i>
+                        <i class="fa-regular fa-eye eye-icon" id="toggle-balance-visibility" style="cursor:pointer; padding: 5px;"></i>
                     </div>
                     <div class="amount" id="dash-total-balance">0,00 ₺</div>
                     
@@ -104,24 +103,11 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <h3 class="section-title">Hızlı İşlemler</h3>
-                <div class="quick-actions">
-                    <div class="action-btn" onclick="switchTab('tab-calc')">
-                        <div class="action-icon success-bg"><i class="fa-solid fa-plus"></i></div>
-                        <span class="action-label">Yeni Hesaplama</span>
-                    </div>
-                    <div class="action-btn" onclick="switchTab('tab-analysis')">
-                        <div class="action-icon purple-bg"><i class="fa-solid fa-chart-pie"></i></div>
-                        <span class="action-label">Karşılaştırma</span>
-                    </div>
-                    <div class="action-btn">
-                        <div class="action-icon yellow-bg"><i class="fa-solid fa-bell"></i></div>
-                        <span class="action-label">Faiz Alarmı</span>
-                    </div>
-                    <div class="action-btn">
-                        <div class="action-icon red-bg"><i class="fa-solid fa-bullseye"></i></div>
-                        <span class="action-label">Hedef Belirle</span>
+                <!-- Aşama 6: Hesaplama Geçmişi (Dashboard) -->
+                <div class="card history-card" style="background-color: var(--bg-card); border-radius: 20px; padding: 1.5rem; border: 1px solid var(--border-color); margin-bottom: 1.2rem; margin-top: 1.5rem;">
+                    <h2 style="font-size: 1.2rem; margin-bottom: 1rem; text-align: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.8rem;">Hesaplama Geçmişi (Son 5)</h2>
+                    <div id="history-list" class="history-list">
+                        <p style="text-align:center; color: var(--text-muted);">Yükleniyor...</p>
                     </div>
                 </div>
             </main>
@@ -142,7 +128,7 @@
             <main class="scrollable">
                 <form id="calculator-form">
                     <div class="floating-input-group">
-                        <input type="number" id="balance" name="balance" required value="1000000" min="0" step="0.01">
+                        <input type="text" id="balance" name="balance" required>
                         <label for="balance">Anapara (TL)</label>
                         <span class="suffix">₺</span>
                     </div>
@@ -155,6 +141,7 @@
 
                     <div class="floating-input-group select-group">
                         <select id="term-days" name="term-days" required>
+                            <option value="1">1 Gün</option>
                             <option value="32" selected>32 Gün</option>
                             <option value="46">46 Gün</option>
                             <option value="92">92 Gün</option>
@@ -163,30 +150,22 @@
                         <label for="term-days">Vade Süresi</label>
                         <i class="fa-solid fa-chevron-down suffix-icon"></i>
                     </div>
-
-                    <div class="floating-input-group">
-                        <input type="text" id="start-date" name="start-date" readonly value="">
-                        <label for="start-date">Başlangıç Tarihi</label>
-                        <i class="fa-regular fa-calendar suffix-icon"></i>
-                    </div>
                     
                     <div class="floating-input-group">
-                        <!-- EVDS API entegrasyonu için (Görünür kılındı ama read-only veya default değer eklenebilir) -->
                         <input type="number" id="inflation-rate" name="inflation-rate" required value="3.5" min="0" step="0.01">
                         <label for="inflation-rate">Aylık Enflasyon (TCMB) <span id="api-status"></span></label>
                         <span class="suffix">%</span>
                     </div>
 
-                    <!-- Gizli alan: Dinamik Banka Alt limiti (eskiden vardı) -->
                     <input type="hidden" id="bank-limit" value="126">
 
                     <div class="floating-input-group">
-                        <input type="number" id="tax-rate" name="tax-rate" required value="15" min="0" max="100" step="1">
+                        <!-- Step 0.01 yapıldı ve ondalıklı girmeye imkan tanındı -->
+                        <input type="number" id="tax-rate" name="tax-rate" required value="15" min="0" max="100" step="0.01">
                         <label for="tax-rate">Stopaj Oranı (%)</label>
                         <span class="suffix">%</span>
                     </div>
 
-                    <!-- Net Rate Info Card -->
                     <div class="glass-card blue-green-bg mt-3">
                         <span class="label text-light">Net faiz oranınız</span>
                         <div class="amount text-white" id="net-rate-display">%38.25</div>
@@ -196,7 +175,7 @@
                     <button type="submit" class="btn-primary mt-4">HESAPLA</button>
                     
                     <div id="calc-success-msg" class="success-text mt-3" style="text-align: center; opacity: 0; transition: opacity 0.3s;">
-                        Hesaplama başarılı. Ana Sayfa veya Analiz sekmesine geçin.
+                        Hesaplama başarılı.
                     </div>
                 </form>
 
@@ -219,13 +198,10 @@
                 
                 <div class="tab-navigation">
                     <div class="nav-item active">Genel Bakış</div>
-                    <div class="nav-item">Karşılaştırma</div>
-                    <div class="nav-item">Detaylı Analiz</div>
                 </div>
             </header>
 
             <main class="scrollable">
-                <!-- Performance Card -->
                 <div class="glass-card dark-card mb-3">
                     <div class="card-header-inline">
                         <h3 class="card-title">Vade Sonu Performansı</h3>
@@ -253,7 +229,6 @@
                     </div>
                 </div>
 
-                <!-- Real Return Result Card -->
                 <div class="glass-card success-tint-bg mb-3" id="analysis-real-card">
                     <div class="card-header-inline">
                         <div class="icon-circle success-bg" id="analysis-icon-bg">
@@ -267,7 +242,6 @@
                     <p class="subtitle text-light mt-2" id="analysis-real-desc">Hesaplama bekleniyor...</p>
                 </div>
 
-                <!-- Line Chart Card -->
                 <div class="glass-card dark-card mb-3">
                     <h3 class="card-title mb-3">Aylık Getiri/Kayıp Grafiği</h3>
                     <div class="chart-container">
@@ -275,7 +249,6 @@
                     </div>
                 </div>
 
-                <!-- Monthly Data Table -->
                 <div class="glass-card dark-card mb-4">
                     <h3 class="card-title mb-3">Gelecek 3 Ay Simülasyonu</h3>
                     <table class="data-table">
@@ -311,44 +284,52 @@
                 <h3 class="section-title">HESAPLAMA AYARLARI</h3>
                 <div class="settings-group glass-card dark-card p-0 mb-4">
                     <div class="settings-item">
+                        <span>Varsayılan Yıllık Faiz</span>
+                        <div class="settings-right" style="width: 70px;">
+                            <input type="number" id="setting-default-interest" value="45" min="0" step="0.01" style="background: transparent; border: none; color: var(--text-muted); text-align: right; width: 100%; outline: none; font-size: 0.95rem; font-family: var(--font-family);">
+                            <span class="text-muted ml-1">%</span>
+                        </div>
+                    </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
                         <span>Varsayılan Stopaj Oranı</span>
-                        <div class="settings-right">
-                            <span class="value">%15</span>
-                            <i class="fa-solid fa-chevron-right text-muted ml-2"></i>
+                        <div class="settings-right" style="width: 70px;">
+                            <input type="number" id="setting-default-tax" value="15" min="0" max="100" step="0.01" style="background: transparent; border: none; color: var(--text-muted); text-align: right; width: 100%; outline: none; font-size: 0.95rem; font-family: var(--font-family);">
+                            <span class="text-muted ml-1">%</span>
                         </div>
                     </div>
                     <div class="settings-divider"></div>
                     <div class="settings-item">
                         <span>Varsayılan Vade</span>
-                        <div class="settings-right">
-                            <span class="value">32 Gün</span>
-                            <i class="fa-solid fa-chevron-right text-muted ml-2"></i>
+                        <div class="settings-right" style="width: 70px;">
+                            <input type="number" id="setting-default-term" value="32" min="1" step="1" style="background: transparent; border: none; color: var(--text-muted); text-align: right; width: 100%; outline: none; font-size: 0.95rem; font-family: var(--font-family);">
+                            <span class="text-muted ml-1">Gün</span>
                         </div>
                     </div>
                 </div>
 
-                <h3 class="section-title">BİLDİRİM AYARLARI</h3>
+                <h3 class="section-title">BİLDİRİM AYARLARI (PASİF)</h3>
                 <div class="settings-group glass-card dark-card p-0 mb-4">
                     <div class="settings-item">
-                        <span>Faiz Alarmı</span>
+                        <span class="text-muted">Faiz Alarmı</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" checked>
+                            <input type="checkbox" checked disabled>
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="settings-divider"></div>
                     <div class="settings-item">
-                        <span>Enflasyon Uyarısı</span>
+                        <span class="text-muted">Enflasyon Uyarısı</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" checked>
+                            <input type="checkbox" checked disabled>
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="settings-divider"></div>
                     <div class="settings-item">
-                        <span>Haftalık Rapor</span>
+                        <span class="text-muted">Haftalık Rapor</span>
                         <label class="toggle-switch">
-                            <input type="checkbox">
+                            <input type="checkbox" disabled>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -359,7 +340,7 @@
                     <div class="settings-item">
                         <span>Karanlık Mod</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" checked disabled>
+                            <input type="checkbox" id="theme-toggle" checked>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -375,14 +356,14 @@
 
                 <h3 class="section-title">VERİ VE SENKRONİZASYON</h3>
                 <div class="settings-group glass-card dark-card p-0 mb-5">
-                    <div class="settings-item">
+                    <div class="settings-item" id="btn-backup" style="cursor:pointer;">
                         <div class="icon-text">
                             <i class="fa-solid fa-cloud text-muted mr-2"></i>
                             <span>Verileri Yedekle (Firebase)</span>
                         </div>
                     </div>
                     <div class="settings-divider"></div>
-                    <div class="settings-item">
+                    <div class="settings-item" id="btn-restore" style="cursor:pointer;">
                         <div class="icon-text">
                             <i class="fa-solid fa-clock-rotate-left text-muted mr-2"></i>
                             <span>Verileri Geri Yükle</span>
@@ -417,9 +398,42 @@
 
     </div>
     
+    <!-- Error/Alert Modal -->
+    <div id="custom-modal" class="modal-overlay" style="z-index: 1020;">
+        <div class="glass-card modal-content dark-card" style="border: 1px solid var(--neon-green); box-shadow: 0 0 20px rgba(0, 230, 118, 0.1);">
+            <h3 class="card-title text-center mb-3" id="modal-title" style="color: var(--neon-green);">Bilgi</h3>
+            <p id="modal-message" class="text-center text-muted mb-4">İşlem sonucu.</p>
+            <button class="btn-primary" onclick="closeModal()">TAMAM</button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay" style="z-index: 1010;">
+        <div class="glass-card modal-content dark-card" style="border: 1px solid var(--soft-red); box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);">
+            <h3 class="card-title text-center mb-3" id="confirm-title" style="color: var(--soft-red);">Uyarı</h3>
+            <p id="confirm-message" class="text-center text-muted mb-4">Emin misiniz?</p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" id="confirm-btn-yes" style="background-color: var(--soft-red); color: white; box-shadow: none;">SİL</button>
+                <button class="btn-primary" onclick="closeConfirmModal()" style="background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); box-shadow: none;">İPTAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification/History Modal -->
+    <div id="notification-modal" class="modal-overlay" style="z-index: 1000;">
+        <div class="glass-card modal-content dark-card" style="max-height: 80vh; overflow-y: auto; padding: 1rem;">
+            <div class="card-header-inline mb-3">
+                <h3 class="card-title">Geçmiş Kayıtlar</h3>
+                <i class="fa-solid fa-xmark" onclick="closeNotificationModal()" style="cursor: pointer; font-size: 1.2rem; color: var(--text-muted);"></i>
+            </div>
+            <div id="notification-list">
+                <p style="text-align:center; color: var(--text-muted);">Yükleniyor...</p>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/app.js"></script>
     <script>
-        // Global sekme değiştirici - app.js üzerinden de çağrılabilir
         window.switchTab = function(targetId) {
             document.querySelectorAll('.screen').forEach(el => {
                 el.classList.remove('active');
